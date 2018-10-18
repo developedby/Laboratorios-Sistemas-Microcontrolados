@@ -114,14 +114,7 @@ EsperaGPIO
 	;ORR     R1, #BIT1							;nos bits 0 e 1
 	;STR     R1, [R0]							;Escreve no registrador da memória do resistor de pull-up
 	
-Init_Display_Config
-	
-	ldr r0, =GPIO_PORTM_AHB_DATA_R
-	ldr r2, [r0]
-	; RS=0, RW=1, EN=1 (le estado)
-	bic r2, #2_00000100
-	str r2, [r0]
-	
+Init_Display_Config	
 	; Inicializar no modo 2 linhas / caracter matriz 5x7
 	mov r4, #0x38
 	push {lr}
@@ -158,13 +151,14 @@ Init_Display_Config
 	
 ; Espera o display estar pronto (le a busy flag)	
 Wait_For_Display
+	
 	push {r0-r3}
 	
 	; Seta os dados do display como entrada
-	LDR     R0, =GPIO_PORTK_AHB_DEN_R			;Carrega o endereço do DEN
-	LDR     R1, [R0]							;Ler da memória o registrador GPIO_PORTN_AHB_DEN_R
+	LDR     R0, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DIR
+	LDR     R1, [R0]							;Ler da memória o registrador GPIO_PORTK_AHB_DIR_R
 	push 	{r1}
-	bic     r1, #2_11111111						;Habilitar funcionalidade digital na DEN os bits 0 e 1
+	bic     r1, #2_11111111						; Le o display
 	STR     R1, [R0]
 	
 	ldr r0, =GPIO_PORTM_AHB_DATA_R
@@ -180,6 +174,7 @@ Wait_For_Display
 	mov r0, #1
 	bl SysTick_Wait1ms
 	pop {r0, r1, r3, lr}
+	b Fim
 	
 	; EN=0 (da clock no display)
 	bic r2, #2_00000100
@@ -191,11 +186,12 @@ Display_Not_Ready_Loop
 	cmp r3, #2_10000000
 	beq Display_Not_Ready_Loop
 	
-	; Restaura GPIO_PORTK_AHB_DEN_R
-	LDR     R0, =GPIO_PORTK_AHB_DEN_R			
+Fim
+	; Restaura GPIO_PORTK_AHB_DIR_R
+	LDR     R0, =GPIO_PORTK_AHB_DIR_R			
 	pop 	{r1}						
 	STR     R1, [R0]
-	
+
 	pop {r0-r3}
 	bx lr
 	
@@ -205,7 +201,7 @@ Display_Send_Instruction
 	push {r0-r4}
 
 	; Seta os dados do display como saida
-	LDR     R0, =GPIO_PORTK_AHB_DEN_R			;Carrega o endereço do DEN
+	LDR     R0, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DEN
 	LDR     R1, [R0]							;Ler da memória o registrador GPIO_PORTN_AHB_DEN_R
 	push 	{r1}
 	orr     r1, #2_11111111						;Habilitar funcionalidade digital na DEN os bits 0 e 1
@@ -239,7 +235,7 @@ Display_Send_Instruction
 	bic r2, #2_00000100
 	str r2, [r0]
 	
-	LDR R0, =GPIO_PORTK_AHB_DEN_R
+	LDR R0, =GPIO_PORTK_AHB_DIR_R
 	pop {r1}
 	str r1, [r0]
 	
@@ -256,7 +252,7 @@ Display_Send_Data
 	push {r0-r4}
 
 	; Seta os dados do display como saida
-	LDR     R0, =GPIO_PORTK_AHB_DEN_R			;Carrega o endereço do DEN
+	LDR     R0, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DEN
 	LDR     R1, [R0]							;Ler da memória o registrador GPIO_PORTN_AHB_DEN_R
 	push 	{r1}
 	orr     r1, #2_11111111						;Habilitar funcionalidade digital na DEN os bits 0 e 1
@@ -290,7 +286,7 @@ Display_Send_Data
 	bic r2, #2_00000100
 	str r2, [r0]
 	
-	LDR R0, =GPIO_PORTK_AHB_DEN_R
+	LDR R0, =GPIO_PORTK_AHB_DIR_R
 	pop {r1}
 	str r1, [r0]
 	
