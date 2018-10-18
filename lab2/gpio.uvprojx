@@ -386,11 +386,6 @@
               <FilePath>.\main.s</FilePath>
             </File>
             <File>
-              <FileName>gpio.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>.\gpio.s</FilePath>
-            </File>
-            <File>
               <FileName>utils.s</FileName>
               <FileType>2</FileType>
               <FilePath>.\utils.s</FilePath>
@@ -401,14 +396,14 @@
               <FilePath>.\display_lcd.s</FilePath>
             </File>
             <File>
-              <FileName>7seg.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>.\7seg.s</FilePath>
-            </File>
-            <File>
               <FileName>teclado_matricial_3x4.s</FileName>
               <FileType>2</FileType>
               <FilePath>.\teclado_matricial_3x4.s</FilePath>
+            </File>
+            <File>
+              <FileName>leds_inboard.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>.\leds_inboard.s</FilePath>
             </File>
           </Files>
         </Group>
