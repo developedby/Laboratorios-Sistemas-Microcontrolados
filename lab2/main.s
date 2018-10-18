@@ -111,14 +111,14 @@ Main_Loop
 	bl SysTick_Wait1ms
 
 	bl Varre_Teclado
-	cbz r0, Main_Loop
+	cmp r0, #0
+	beq Main_Loop
 
 Tecla_Pressionada
 	cmp r0, #9 					; So queremos as primeiras 9
 	bgt Initial_Loop
 
 	cmp r0, r5					; Ve se a tecal pressionada e igual a ultima
-	ite eq 
 	beq Incrementa_Tabuada
 	bne Nova_Tabuada
 Nova_Tabuada
@@ -134,7 +134,7 @@ Incrementa_Tabuada
 	b Exibe_Tabuada
 
 Exibe_Tabuada
-	mov r4, 0x02				; Vai com cursor para home
+	mov r4, #0x02				; Vai com cursor para home
 	bl Display_Send_Instruction
 	mov r4, #'T'
 	bl Display_Send_Data
@@ -161,7 +161,7 @@ Exibe_Tabuada
 	add r4, r5, #'0'
 	bl Display_Send_Data
 	
-	mov r4, 0xc0				; Vai com cursor para 2a linha
+	mov r4, #0xc0				; Vai com cursor para 2a linha
 	bl Display_Send_Instruction
 
 	add r4, r5, #'0'
@@ -177,7 +177,8 @@ Exibe_Tabuada
 	mov r4, #' '
 	bl Display_Send_Data
 	mul r3, r5, r6
-	div r4, r3, #10
+	mov r2, #10
+	sdiv r4, r3, r2
 	bl Display_Send_Data
 Modulo_10
 	cmp r3, #10
