@@ -40,12 +40,10 @@ BIT1	EQU 2_0010
 		; Se chamar alguma fun��o externa	
         ;IMPORT <func>              ; Permite chamar dentro deste arquivo uma 
 									; fun��o <func>
-		IMPORT  GPIO_Init
 		IMPORT	PLL_Init
 		IMPORT	SysTick_Init
 		IMPORT	SysTick_Wait1ms
 			
-		IMPORT	PortJ_Input
 			
 		IMPORT Init_Display
 		IMPORT Display_Send_Data
@@ -53,6 +51,10 @@ BIT1	EQU 2_0010
 
 		import Init_Teclado
 		import Varre_Teclado
+			
+		import Init_Leds
+		import Acende_Led
+		import Apaga_Led
 
 ; -------------------------------------------------------------------------------
 
@@ -61,16 +63,15 @@ BIT1	EQU 2_0010
 Start  			
 	BL PLL_Init                  ;Chama a subrotina para alterar o clock do microcontrolador para 80MHz
 	BL SysTick_Init              ;Chama a subrotina para inicializar o SysTick
-	BL GPIO_Init                 ;Chama a subrotina que inicializa os GPIO
 	bl Init_Display
 	bl Init_Teclado
-
-Inicia_Variaveis
-	mov r5, #0					; R5 contem o numero da tabuada (ultima tecla)
-	mov r6, #0					; R6 contem o contador da tabuada
+	bl Init_Leds
 
 
 Initial_Loop
+	mov r5, #0					; R5 contem o numero da tabuada (ultima tecla)
+	mov r6, #0					; R6 contem o contador da tabuada
+
 	mov r4, #0x01				; Limpa display
 	bl Display_Send_Instruction
 	mov r4, #'A'
@@ -107,7 +108,7 @@ Initial_Loop
 	bl Display_Send_Data
 
 Main_Loop
-	mov r0, #1000				;Debounce 1s
+	mov r0, #300				;Debounce 1s
 	bl SysTick_Wait1ms
 
 	bl Varre_Teclado
@@ -127,14 +128,14 @@ Nova_Tabuada
 	b Exibe_Tabuada
 
 Incrementa_Tabuada
-	add r6, #1					; inceremnta
+	add r6, #1					; incremnta
 	cmp r6, #10					; se passou do maximo volta
 	it eq
 	moveq r6, #0
 	b Exibe_Tabuada
 
 Exibe_Tabuada
-	mov r4, #0x02				; Vai com cursor para home
+	mov r4, #0x01				; Vai com cursor para home
 	bl Display_Send_Instruction
 	mov r4, #'T'
 	bl Display_Send_Data
@@ -179,23 +180,27 @@ Exibe_Tabuada
 	mul r3, r5, r6
 	mov r2, #10
 	sdiv r4, r3, r2
+	add r4, #'0'
 	bl Display_Send_Data
 Modulo_10
 	cmp r3, #10
-	itt gt 
-	subgt r3, #10
-	bgt Modulo_10
+	itt ge 
+	subge r3, #10
+	bge Modulo_10
 	mov r4, r3
+	add r4, #'0'
 	bl Display_Send_Data
 
 	; Se contador = 9, acende led por 2s
 	cmp r6, #9
 	bne Main_Loop
 
-	;TODO:LIGAR AQUI O LED
+	mov r0, #0
+	bl Acende_Led
 	mov r0, #2000
 	bl SysTick_Wait1ms
-	;TODO:DESLIGAR AQUIO O LED
+	mov r0, #0
+	bl Apaga_Led
 
 	b Main_Loop
 
