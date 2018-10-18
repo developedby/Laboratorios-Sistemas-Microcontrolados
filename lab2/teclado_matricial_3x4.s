@@ -72,12 +72,14 @@ EsperaGPIO
 ; 3. Limpar PCTL para selecionar o GPIO
     LDR     R0, =GPIO_PORTL_AHB_PCTL_R		;Carrega o R0 com o endere�o do PCTL para a porta J
     LDR		r1, [r0]
-	bic 	r1, #0x0F
+	mov		r2, #0
+	movt	r2, #0xffff
+	and 	r1, r2
     STR     R1, [R0]
 	
 	LDR     R0, =GPIO_PORTC_AHB_PCTL_R		;Carrega o R0 com o endere�o do PCTL para a porta J
     ldr		r1, [r0]
-	bic		r1, #0xf0
+	movt	r1, #0x0000
     STR     R1, [R0]
 	
 ; 4. DIR para 0 se for entrada, 1 se for sa�da	
@@ -88,7 +90,7 @@ EsperaGPIO
 	
 	LDR     R0, =GPIO_PORTL_AHB_DIR_R		;Carrega o R0 com o endere�o do DIR para a porta N
 	ldr		r1, [r0]
-	bic     R1, #0x0f     					;Saida do teclado (3 linhas e pull-up) [coloquei como entrada pra testar]
+	orr     R1, #0x0f     					;Saida do teclado (3 linhas e GND)
     STR     R1, [R0]
 	
 ; 5. Limpar os bits AFSEL para 0 para selecionar GPIO sem fun��o alternativa
@@ -113,12 +115,11 @@ EsperaGPIO
 	orr     R1, #0x0f						;Habilitar funcionalidade digital na DEN os bits 0 e 1
 	STR     R1, [R0]
 	
-; Liga o VCC do teclado e desliga as linhas [removido pra testar]
-	;ldr r0, =GPIO_PORTL_AHB_DATA_R
-	;ldr r1, [r0]
-	;bic r1, #2_0111
-	;orr r1, #2_1000
-	;str r1, [r0]
+; Desliga as linhas e ativa o GND
+	ldr r0, =GPIO_PORTL_AHB_DATA_R
+	ldr r1, [r0]
+	bic r1, #2_1111
+	str r1, [r0]
 	
 	pop {r0-r2}
 	bx lr
@@ -158,16 +159,17 @@ Nenhuma_Linha_Pressionada
 ; Entrada em R0, saida em R0
 ; Nao testa entradas nem saidas
 Varre_Linha
-	push {r0, r2, r3}  
+	push {r1, r2, r3, r4}  
 	sub r0, #1
+	mov r4, r0	; r4 é o numero da linha comecando em 0
 	mov r2, #1
 	lsl r2, r0	; r2 e o bit da linha a ser lida
 	
 	; Ativa a linha a ser varrida e desativa as outras
-	LDR     R0, =GPIO_PORTL_AHB_DIR_R		
+	LDR     R0, =GPIO_PORTL_AHB_DEN_R		
 	ldr		r1, [r0]
 	orr     R1, r2
-	mov		r3, #0x0f
+	mov		r3, #0x07
 	sub		r3, r2
 	bic		r1, r3
     STR     R1, [R0]
@@ -183,11 +185,14 @@ Varre_Linha
 	bl Varre_Colunas
 	pop{lr}
 	cbz r0, Linha_Nao_Pressionada
-	add r0, r2, r0
-	pop {r0,r2,r3}
+	mov r3, #4
+	mul r4, r3			;r3 é numero de colunas em uma linha
+	add r0, r4, r0
+	pop {r1,r2,r3,r4}
 	bx lr
 Linha_Nao_Pressionada
 	mov r0, #0
+	pop {r1,r2,r3,r4}
 	bx lr 
 
 ; Escreve em r0 o valor da coluna pressionada
@@ -200,21 +205,25 @@ Varre_Colunas
 	and r2, r1, #2_00010000
 	cbz r2, Coluna_1_Nao_Pressionada
 	mov r0, #1
+	pop {r1, r2}
 	bx lr
 Coluna_1_Nao_Pressionada
 	and r2, r1, #2_00100000
 	cbz r2, Coluna_2_Nao_Pressionada
 	mov r0, #2
+	pop {r1, r2}
 	bx lr
 Coluna_2_Nao_Pressionada
 	and r2, r1, #2_01000000
 	cbz r2, Coluna_3_Nao_Pressionada
 	mov r0, #3
+	pop {r1, r2}
 	bx lr
 Coluna_3_Nao_Pressionada
 	and r2, r1, #2_10000000
 	cbz r2, Nenhuma_Coluna_Pressionada
 	mov r0, #4
+	pop {r1, r2}
 	bx lr
 Nenhuma_Coluna_Pressionada
 	mov r0, #0
