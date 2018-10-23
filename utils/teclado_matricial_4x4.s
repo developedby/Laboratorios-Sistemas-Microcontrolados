@@ -1,4 +1,4 @@
-; Biblioteca em assembly para uso de teclado matricial 3x4 com resistor de pull-up/down integrado com a PAT DAELN e Tiva C TM4C129
+; Biblioteca em assembly para uso de teclado matricial 4x4 com a PAT DAELN e Tiva C TM4C129
 ; Nicolas Abril e Lucca Rawlyk
 
 
@@ -90,7 +90,7 @@ EsperaGPIO
 	
 	LDR     R0, =GPIO_PORTL_AHB_DIR_R		;Carrega o R0 com o endere�o do DIR para a porta N
 	ldr		r1, [r0]
-	orr     R1, #0x0f     					;Saida do teclado (3 linhas e GND)
+	orr     R1, #0x0f     					;Saida do teclado (4 linhas)
     STR     R1, [R0]
 	
 ; 5. Limpar os bits AFSEL para 0 para selecionar GPIO sem fun��o alternativa
@@ -112,18 +112,24 @@ EsperaGPIO
 	
 	LDR     R0, =GPIO_PORTL_AHB_DEN_R			;Carrega o endere�o do DEN
 	LDR     R1, [R0]							;Ler da mem�ria o registrador GPIO_PORTN_AHB_DEN_R
-	orr     R1, #0x0f						;Habilitar funcionalidade digital na DEN os bits 0 e 1
+	orr     R1, #0x0f							;Habilitar funcionalidade digital na DEN os bits 0 e 1
 	STR     R1, [R0]
 	
-; Desliga as linhas e ativa o GND
-	ldr r0, =GPIO_PORTL_AHB_DATA_R
-	ldr r1, [r0]
-	bic r1, #2_1111
-	str r1, [r0]
+; 7. Para habilitar resistor de pull-up interno, setar PUR para 1
+	LDR     R0, =GPIO_PORTC_AHB_PUR_R			;Carrega o endereço do PUR para a porta J
+	LDR 	r1, [r0]
+	orr 	r1, #0xf0 							;Liga pull up para leitura dos botoes
+    STR     R1, [R0]							;Escreve no registrador da memória do resistor de pull-up
+	BX      LR
 	
-	pop {r0-r2}
-	bx lr
-	
+; 8. Inicializa saídas com 1 (desativada)
+	LDR     R0, =GPIO_PORTL_AHB_DATA_R			;Carrega o endere�o do DEN
+	LDR     R1, [R0]							;Ler da mem�ria o registrador GPIO_PORTN_AHB_DEN_R
+	orr     R1, #0x0f							;Habilitar funcionalidade digital na DEN os bits 0 e 1
+	STR     R1, [R0]
+
+
+
 ; Retorna em r0 a tecla pressionada (prioridade para a ordem de varredura)
 Varre_Teclado
 	mov r0, #1
@@ -174,10 +180,10 @@ Varre_Linha
 	bic		r1, r3
     STR     R1, [R0]
 
-	; Escreve 1 na linha a ser lida
+	; Escreve 0 na linha a ser lida
 	ldr r0, =GPIO_PORTL_AHB_DATA_R
 	ldr r1, [r0]
-	orr r1, r2
+	bic r1, r2
 	str r1, [r0]
 
 	; Le os botoes
