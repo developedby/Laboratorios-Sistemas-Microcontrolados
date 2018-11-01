@@ -5,6 +5,8 @@
 
 #include <stdint.h>
 
+#include "motor_passo.c"
+
 void PLL_Init(void);
 void SysTick_Init(void);
 void SysTick_Wait1ms(uint32_t delay);
@@ -19,7 +21,6 @@ typedef enum {COFRE_ABERTO, COFRE_FECHADO, COFRE_ABRINDO, COFRE_FECHANDO} estado
 
 void Display_Clean ();
 void Display_Print (const char* mensagem, int linha, int coluna);
-float Move_Motor_Passo (float pos_motor_desejada, float pos_motor_atual);
 
 int main(void)
 {
