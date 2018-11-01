@@ -3,3 +3,6 @@ Objects/
 *.uvguix.*
 *.scvd
 *.uvoptx
+*.zip
+*.7z
+*.tar.gz

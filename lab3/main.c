@@ -11,13 +11,15 @@ void SysTick_Wait1ms(uint32_t delay);
 void GPIO_Init(void);
 uint32_t PortJ_Input(void);
 void PortN_Output(uint32_t leds);
+void Init_Display();
+void Init_Teclado();
 int Varre_Teclado(void);
 
-enum estado {COFRE_ABERTO, COFRE_FECHADO, COFRE_ABRINDO, COFRE_FECHANDO};
+typedef enum {COFRE_ABERTO, COFRE_FECHADO, COFRE_ABRINDO, COFRE_FECHANDO} estado;
 
 void Display_Clean ();
-void Display_Print (cont char* mensagem, int linha, int coluna);
-float Move_Motor (float pos_motor_desejada, float pos_motor_atual);
+void Display_Print (const char* mensagem, int linha, int coluna);
+float Move_Motor_Passo (float pos_motor_desejada, float pos_motor_atual);
 
 int main(void)
 {
@@ -31,14 +33,14 @@ int main(void)
 	int senha_atual[4] = {-1, -1, -1, -1};
 	int senha_pressionada[4] = {-1, -1, -1, -1};
 
-	enum estado estado_cofre = SEM_SENHA;
+	estado estado_cofre = COFRE_ABERTO;
 	float pos_motor = 0;
 	int caracteres_inseridos_senha = 0;
 	int botao_pressionado = 0;
 	Display_Clean();
 	Display_Print("Cofre Aberto", 0, 0);
 	Display_Print("Digite Nova Senha", 0, 1);
-	pos_motor = Move_Motor(0, pos_motor);
+	pos_motor = Move_Motor_Passo(0, pos_motor);
 
 	while (1)
 	{
@@ -76,8 +78,8 @@ int main(void)
 				Display_Clean();
 				Display_Print("Cofre Fechando", 0, 0);
 				SysTick_Wait1ms(1000);
-				pos_motor = Move_Motor(180, pos_motor);
-				estado = COFRE_FECHADO;
+				pos_motor = Move_Motor_Passo(180, pos_motor);
+				estado_cofre = COFRE_FECHADO;
 
 				Display_Clean();
 				Display_Print("Cofre Fechado", 0, 0);
@@ -101,7 +103,7 @@ int main(void)
 							senha_pressionada[2] == senha_atual[2] && 
 							senha_pressionada[3] == senha_atual[3])
 						{
-							estado = COFRE_ABRINDO;
+							estado_cofre = COFRE_ABRINDO;
 						}
 						else
 						{
@@ -124,8 +126,8 @@ int main(void)
 				senha_atual[3]=-1;
 				Display_Clean();
 				Display_Print("Cofre Abrindo", 0, 0);
-				pos_motor = Move_Motor(0, pos_motor);
-				estado = COFRE_ABERTO;
+				pos_motor = Move_Motor_Passo(0, pos_motor);
+				estado_cofre = COFRE_ABERTO;
 
 				Display_Clean();
 				Display_Print("Cofre Aberto", 0, 0);

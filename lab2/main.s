@@ -27,7 +27,7 @@ BIT1	EQU 2_0010
 ;<var>	SPACE <tam>                        ; Declara uma vari�vel de nome <var>
                                            ; de <tam> bytes a partir da primeira 
                                            ; posi��o da RAM		
-
+ESTADO_TABUADA	SPACE	40
 ; -------------------------------------------------------------------------------
 ; �rea de C�digo - Tudo abaixo da diretiva a seguir ser� armazenado na mem�ria de 
 ;                  c�digo
@@ -51,7 +51,8 @@ BIT1	EQU 2_0010
 
 		import Init_Teclado
 		import Varre_Teclado
-			
+		import Mapeia_Tecla
+		
 		import Init_Leds
 		import Acende_Led
 		import Apaga_Led
@@ -67,9 +68,21 @@ Start
 	bl Init_Teclado
 	bl Init_Leds
 
+	ldr r7, =ESTADO_TABUADA
+	mov r0, #0
+	str r0, [r7]
+	str r0, [r7,#4]
+	str r0, [r7,#8]
+	str r0, [r7,#12]
+	str r0, [r7,#16]
+	str r0, [r7,#20]
+	str r0, [r7,#24]
+	str r0, [r7,#28]
+	str r0, [r7,#32]
+	str r0, [r7,#36]
 
 Initial_Loop
-	mov r5, #0					; R5 contem o numero da tabuada (ultima tecla)
+	mov r5, #-1					; R5 contem o numero da tabuada (ultima tecla)
 	mov r6, #0					; R6 contem o contador da tabuada
 
 	mov r4, #0x01				; Limpa display
@@ -110,25 +123,47 @@ Initial_Loop
 Main_Loop
 	mov r0, #300				;Debounce 1s
 	bl SysTick_Wait1ms
-
 	bl Varre_Teclado
-	cmp r0, #0
+	bl Mapeia_Tecla
+	cmp r0, #-1
 	beq Main_Loop
 
 Tecla_Pressionada
-	cmp r0, #9 					; So queremos as primeiras 9
-	bgt Initial_Loop
+	cmp r0, #'9'
+	bgt Tecla_Invalida_Pressionada
+	cmp r0, #'0'
+	blt	Tecla_Invalida_Pressionada
+	b Tecla_Valida_Pressionada
 
-	cmp r0, r5					; Ve se a tecal pressionada e igual a ultima
+Tecla_Invalida_Pressionada
+	cmp r5, #-1
+	beq Initial_Loop	; Se tava em nenhuma tabuada nao salva
+	mov r2, #4
+	; Guarda tabuada antiga
+	mul r1, r5, r2
+	str r6, [r7,r1]
+	b Initial_Loop
+
+Tecla_Valida_Pressionada
+	sub r0, #'0'
+	cmp r0, r5					; Ve se a tecla pressionada e igual a ultima
 	beq Incrementa_Tabuada
 	bne Nova_Tabuada
 Nova_Tabuada
+	cmp r5, #-1
+	mov r2, #4
+	beq Carrega_Nova_Tabuada	; Se tava em nenhuma tabuada nao salva
+	; Guarda tabuada antiga
+	mul r1, r5, r2
+	str r6, [r7,r1]
+Carrega_Nova_Tabuada
 	mov r5, r0
-	mov r6, #0
+	mul r1, r5, r2
+	ldr r6, [r7,r1]
 	b Exibe_Tabuada
 
 Incrementa_Tabuada
-	add r6, #1					; incremnta
+	add r6, #1					; incrementa
 	cmp r6, #10					; se passou do maximo volta
 	it eq
 	moveq r6, #0

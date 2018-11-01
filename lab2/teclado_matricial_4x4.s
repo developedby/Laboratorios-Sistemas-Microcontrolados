@@ -34,6 +34,7 @@ GPIO_PORTC               	EQU    2_000000000000100
         THUMB
 		export Init_Teclado
 		export Varre_Teclado
+		export Mapeia_Tecla
 
 
 ; Prepara o teclado para uso (configura GPIO e seta as constantes)
@@ -248,6 +249,92 @@ Nenhuma_Coluna_Pressionada
 	pop {r1, r2}
 	bx lr
 
+; Transforma uma tecla em codigo do teclado em um simbolo ASCII
+; Entrada em r0, saida em r0
+Mapeia_Tecla
+	cmp r0, #1
+	bne Nao_E_1
+	mov r0, #'1'
+	bx lr
+Nao_E_1
+	cmp r0, #2
+	bne Nao_E_2
+	mov r0, #'2'
+	bx lr
+Nao_E_2
+	cmp r0, #3
+	bne Nao_E_3
+	mov r0, #'3'
+	bx lr
+Nao_E_3
+	cmp r0, #4
+	bne Nao_E_4
+	mov r0, #'A'
+	bx lr
+Nao_E_4
+	cmp r0, #5
+	bne Nao_E_5
+	mov r0, #'4'
+	bx lr
+Nao_E_5
+	cmp r0, #6
+	bne Nao_E_6
+	mov r0, #'5'
+	bx lr
+Nao_E_6
+	cmp r0, #7
+	bne Nao_E_7
+	mov r0, #'6'
+	bx lr
+Nao_E_7
+	cmp r0, #8
+	bne Nao_E_8
+	mov r0, #'B'
+	bx lr
+Nao_E_8
+	cmp r0, #9
+	bne Nao_E_9
+	mov r0, #'7'
+	bx lr
+Nao_E_9
+	cmp r0, #10
+	bne Nao_E_10
+	mov r0, #'8'
+	bx lr
+Nao_E_10
+	cmp r0, #11
+	bne Nao_E_11
+	mov r0, #'9'
+	bx lr
+Nao_E_11
+	cmp r0, #12
+	bne Nao_E_12
+	mov r0, #'C'
+	bx lr
+Nao_E_12
+	cmp r0, #13
+	bne Nao_E_13
+	mov r0, #'*'
+	bx lr
+Nao_E_13
+	cmp r0, #14
+	bne Nao_E_14
+	mov r0, #'0'
+	bx lr
+Nao_E_14
+	cmp r0, #15
+	bne Nao_E_15
+	mov r0, #'#'
+	bx lr
+Nao_E_15
+	cmp r0, #16
+	bne Nao_E_Nenhum
+	mov r0, #'D'
+	bx lr
+Nao_E_Nenhum
+	;Erro, nao devia acontecer
+	mov r0, #-1
+	bx lr
 
 	ALIGN
 	END
