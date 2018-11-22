@@ -5,24 +5,21 @@
 
 #include <stdint.h>
 
-#include "motor_dc.c"
-
 void PLL_Init(void);
 void SysTick_Init(void);
 void SysTick_Wait1ms(uint32_t delay);
 void GPIO_Init(void);
 uint32_t PortJ_Input(void);
 void PortN_Output(uint32_t leds);
-void Init_Display();
-void Init_Teclado();
+void Init_Display(void);
+void Init_Teclado(void);
 int Varre_Teclado(void);
-void Init_Motor_DC ();
+void Init_Motor_DC(void);
 void Move_Motor_DC (int vel);
-void Timer0A_Handler ();
 
 typedef enum {COFRE_ABERTO, COFRE_FECHADO, COFRE_ABRINDO, COFRE_FECHANDO} estado;
 
-void Display_Clean ();
+void Display_Clean (void);
 void Display_Print (const char* mensagem, int linha, int coluna);
 
 int main(void)
@@ -32,7 +29,16 @@ int main(void)
 	GPIO_Init();
 	Init_Display();
 	Init_Teclado();
+	Init_Motor_DC();
+	
+	while (1)
+	{
+		Move_Motor_DC(100);
+		SysTick_Wait1ms(1000);
+		Move_Motor_DC(-100);
+		SysTick_Wait1ms(1000);
 
+	}
 	
 }
 
