@@ -31,15 +31,15 @@ void Init_Motor_DC (void)
 	//1a. Ativar o clock para a porta setando o bit correspondente no registrador RCGCGPIO
 	SYSCTL_RCGCGPIO_R |= SYSCTL_PPGPIO_P4 + SYSCTL_PPGPIO_P5;
 	//1b.   após isso verificar no PRGPIO se a porta está pronta para uso.
-  while((SYSCTL_PRGPIO_R & (SYSCTL_PPGPIO_P4 + SYSCTL_PPGPIO_P5) ) != (SYSCTL_PPGPIO_P4 + SYSCTL_PPGPIO_P5) ){};
+  while((SYSCTL_PRGPIO_R & (SYSCTL_PPGPIO_P4 | SYSCTL_PPGPIO_P5) ) != (SYSCTL_PPGPIO_P4 | SYSCTL_PPGPIO_P5) ){};
 	
 	// 2. Limpar o AMSEL para desabilitar a analógica
 	GPIO_PORTE_AHB_AMSEL_R &= ~(1<<MOTOR_INPUT_A | 1<<MOTOR_INPUT_B);
 	GPIO_PORTF_AHB_AMSEL_R &= ~(1<<MOTOR_PWM_PIN);
 		
 	// 3. Limpar PCTL para selecionar o GPIO
-	GPIO_PORTE_AHB_PCTL_R &= ~(1<<MOTOR_INPUT_A | 1<<MOTOR_INPUT_B);
-	GPIO_PORTF_AHB_PCTL_R &= ~(1<<MOTOR_PWM_PIN);
+	GPIO_PORTE_AHB_PCTL_R &= ~((0xf<<(4*MOTOR_INPUT_A)) | (0xf<<(4*MOTOR_INPUT_B)));
+	GPIO_PORTF_AHB_PCTL_R &= ~(0xf<<(4*MOTOR_PWM_PIN));
 
 	// 4. DIR para 0 se for entrada, 1 se for saída
 	GPIO_PORTE_AHB_DIR_R |= (1<<MOTOR_INPUT_A) | (1<<MOTOR_INPUT_B);

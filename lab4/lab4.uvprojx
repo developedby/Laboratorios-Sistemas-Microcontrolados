@@ -415,6 +415,11 @@
               <FileType>1</FileType>
               <FilePath>.\motor_dc.c</FilePath>
             </File>
+            <File>
+              <FileName>potenciometro.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\potenciometro.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>
