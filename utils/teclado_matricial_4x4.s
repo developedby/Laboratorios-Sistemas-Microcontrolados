@@ -34,6 +34,7 @@ GPIO_PORTC               	EQU    2_000000000000100
         THUMB
 		export Init_Teclado
 		export Varre_Teclado
+		export Mapeia_Tecla
 
 
 ; Prepara o teclado para uso (configura GPIO e seta as constantes)
@@ -145,11 +146,17 @@ Linha_1_Nao_Pressionada
 	bl Varre_Linha
 	pop {lr}
 	cbz r0, Linha_2_Nao_Pressionada
-	mov r0, #0
 	bx lr
 
 Linha_2_Nao_Pressionada
 	mov r0, #3
+	push {lr}
+	bl Varre_Linha
+	pop {lr}
+	cbz r0, Linha_3_Nao_Pressionada
+	bx lr
+Linha_3_Nao_Pressionada
+	mov r0, #4
 	push {lr}
 	bl Varre_Linha
 	pop {lr}
@@ -172,18 +179,23 @@ Varre_Linha
 	lsl r2, r0	; r2 e o bit da linha a ser lida
 	
 	; Ativa a linha a ser varrida e desativa as outras
-	LDR     R0, =GPIO_PORTL_AHB_DEN_R		
-	ldr		r1, [r0]
-	orr     R1, r2
-	mov		r3, #0x07
-	sub		r3, r2
-	bic		r1, r3
-    STR     R1, [R0]
+	;LDR     R0, =GPIO_PORTL_AHB_DEN_R		
+	;ldr		r1, [r0]
+	;orr     R1, r2
+	;mov		r3, #0x0f
+	;bic		r3, r2
+	;bic		r1, r3
+    ;STR     R1, [R0]
 
 	; Escreve 0 na linha a ser lida
 	ldr r0, =GPIO_PORTL_AHB_DATA_R
 	ldr r1, [r0]
 	bic r1, r2
+	
+	mov r3, #0x0f
+	bic r3, r2
+	orr r1, r3
+	
 	str r1, [r0]
 
 	; Le os botoes
@@ -209,25 +221,25 @@ Varre_Colunas
 	ldr r1, [r0]
 
 	and r2, r1, #2_00010000
-	cbz r2, Coluna_1_Nao_Pressionada
+	cbnz r2, Coluna_1_Nao_Pressionada
 	mov r0, #1
 	pop {r1, r2}
 	bx lr
 Coluna_1_Nao_Pressionada
 	and r2, r1, #2_00100000
-	cbz r2, Coluna_2_Nao_Pressionada
+	cbnz r2, Coluna_2_Nao_Pressionada
 	mov r0, #2
 	pop {r1, r2}
 	bx lr
 Coluna_2_Nao_Pressionada
 	and r2, r1, #2_01000000
-	cbz r2, Coluna_3_Nao_Pressionada
+	cbnz r2, Coluna_3_Nao_Pressionada
 	mov r0, #3
 	pop {r1, r2}
 	bx lr
 Coluna_3_Nao_Pressionada
 	and r2, r1, #2_10000000
-	cbz r2, Nenhuma_Coluna_Pressionada
+	cbnz r2, Nenhuma_Coluna_Pressionada
 	mov r0, #4
 	pop {r1, r2}
 	bx lr
@@ -237,6 +249,92 @@ Nenhuma_Coluna_Pressionada
 	pop {r1, r2}
 	bx lr
 
+; Transforma uma tecla em codigo do teclado em um simbolo ASCII
+; Entrada em r0, saida em r0
+Mapeia_Tecla
+	cmp r0, #1
+	bne Nao_E_1
+	mov r0, #'1'
+	bx lr
+Nao_E_1
+	cmp r0, #2
+	bne Nao_E_2
+	mov r0, #'2'
+	bx lr
+Nao_E_2
+	cmp r0, #3
+	bne Nao_E_3
+	mov r0, #'3'
+	bx lr
+Nao_E_3
+	cmp r0, #4
+	bne Nao_E_4
+	mov r0, #'A'
+	bx lr
+Nao_E_4
+	cmp r0, #5
+	bne Nao_E_5
+	mov r0, #'4'
+	bx lr
+Nao_E_5
+	cmp r0, #6
+	bne Nao_E_6
+	mov r0, #'5'
+	bx lr
+Nao_E_6
+	cmp r0, #7
+	bne Nao_E_7
+	mov r0, #'6'
+	bx lr
+Nao_E_7
+	cmp r0, #8
+	bne Nao_E_8
+	mov r0, #'B'
+	bx lr
+Nao_E_8
+	cmp r0, #9
+	bne Nao_E_9
+	mov r0, #'7'
+	bx lr
+Nao_E_9
+	cmp r0, #10
+	bne Nao_E_10
+	mov r0, #'8'
+	bx lr
+Nao_E_10
+	cmp r0, #11
+	bne Nao_E_11
+	mov r0, #'9'
+	bx lr
+Nao_E_11
+	cmp r0, #12
+	bne Nao_E_12
+	mov r0, #'C'
+	bx lr
+Nao_E_12
+	cmp r0, #13
+	bne Nao_E_13
+	mov r0, #'*'
+	bx lr
+Nao_E_13
+	cmp r0, #14
+	bne Nao_E_14
+	mov r0, #'0'
+	bx lr
+Nao_E_14
+	cmp r0, #15
+	bne Nao_E_15
+	mov r0, #'#'
+	bx lr
+Nao_E_15
+	cmp r0, #16
+	bne Nao_E_Nenhum
+	mov r0, #'D'
+	bx lr
+Nao_E_Nenhum
+	;Erro, nao devia acontecer
+	mov r0, #-1
+	bx lr
 
 	ALIGN
 	END
