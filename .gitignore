@@ -2,6 +2,7 @@ Listings/
 Objects/
 *.uvguix.*
 *.scvd
+*.tmp
 *.uvoptx
 *.zip
 *.7z
