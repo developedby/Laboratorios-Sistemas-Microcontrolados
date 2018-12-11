@@ -116,31 +116,31 @@ EsperaGPIO
 	
 Init_Display_Config	
 	; Inicializar no modo 2 linhas / caracter matriz 5x7
-	mov r4, #0x38
+	mov r0, #0x38
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 
 	; Cursor com autoincremento para direita
-	mov r4, #0x06
+	mov r0, #0x06
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 	
 	; Configurar o cursor (habilitar o display + cursor + pisca) 
-	mov r4, #0x0E
+	mov r0, #0x0E
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 	
 	; Configurar o cursor piscante 
-	mov r4, #0x0F
+	mov r0, #0x0F
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 	
 	; Limpar o display e levar o cursor para o home
-	mov r4, #0x01
+	mov r0, #0x01
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
@@ -152,7 +152,7 @@ Init_Display_Config
 ; Espera o display estar pronto (le a busy flag)	
 Wait_For_Display
 	
-	push {r0-r3}
+	push {r0-r4}
 	
 	; Seta os dados do display como entrada
 	LDR     R0, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DIR
@@ -170,10 +170,10 @@ Wait_For_Display
 	orr r2, #2_00000110	
 	str r2, [r0]
 	
-	push {r0, r1, r3, lr}
+	push {r0-r4, lr}
 	mov r0, #1
 	bl SysTick_Wait1ms
-	pop {r0, r1, r3, lr}
+	pop {r0-r4, lr}
 	b Fim
 	
 	; EN=0 (da clock no display)
@@ -192,52 +192,52 @@ Fim
 	pop 	{r1}						
 	STR     R1, [R0]
 
-	pop {r0-r3}
+	pop {r0-r4}
 	bx lr
 	
 ; Envia comando para o display
-; Entrada em r4
+; Entrada em r0
 Display_Send_Instruction
 	push {r0-r4}
 
 	; Seta os dados do display como saida
-	LDR     R0, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DEN
-	LDR     R1, [R0]							;Ler da memória o registrador GPIO_PORTN_AHB_DEN_R
+	LDR     R4, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DEN
+	LDR     R1, [R4]							;Ler da memória o registrador GPIO_PORTN_AHB_DEN_R
 	push 	{r1}
 	orr     r1, #2_11111111						;Habilitar funcionalidade digital na DEN os bits 0 e 1
-	STR     R1, [R0]
+	STR     R1, [R4]
 
-	ldr r0, =GPIO_PORTM_AHB_DATA_R
+	ldr r4, =GPIO_PORTM_AHB_DATA_R
 	ldr r1, =GPIO_PORTK_AHB_DATA_R
 	
-	ldr r2, [r0]
+	ldr r2, [r4]
 	ldr r3, [r1]
 
-	and r4, #2_11111111
+	and r0, #2_11111111
 
 	; RS=0, RW=0, EN=1 (envia comando)
 	bic r2, #2_00000011
 	orr r2, #2_00000100	
-	str r2, [r0]
+	str r2, [r4]
 	
 	; Escreve o comando na porta de dados do display
-	orr r3, r4
-	eor r4, #2_11111111
-	bic r3, r4
+	orr r3, r0
+	eor r0, #2_11111111
+	bic r3, r0
 	str r3, [r1]
 	
-	push {r0, r1, r3, lr}
+	push {r0-r4, lr}
 	mov r0, #1
 	bl SysTick_Wait1ms
-	pop {r0, r1, r3, lr}
+	pop {r0-r4, lr}
 	
 	; EN=0 (da clock no display)
 	bic r2, #2_00000100
-	str r2, [r0]
+	str r2, [r4]
 	
-	LDR R0, =GPIO_PORTK_AHB_DIR_R
+	LDR R4, =GPIO_PORTK_AHB_DIR_R
 	pop {r1}
-	str r1, [r0]
+	str r1, [r4]
 	
 	push {lr}
 	bl Wait_For_Display
@@ -247,48 +247,48 @@ Display_Send_Instruction
 	bx lr
 
 ; Envia dados para o display
-; Entrada em r4
+; Entrada em r0
 Display_Send_Data
 	push {r0-r4}
 
 	; Seta os dados do display como saida
-	LDR     R0, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DEN
-	LDR     R1, [R0]							;Ler da memória o registrador GPIO_PORTN_AHB_DEN_R
+	LDR     R4, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DEN
+	LDR     R1, [R4]							;Ler da memória o registrador GPIO_PORTN_AHB_DEN_R
 	push 	{r1}
 	orr     r1, #2_11111111						;Habilitar funcionalidade digital na DEN os bits 0 e 1
-	STR     R1, [R0]
+	STR     R1, [R4]
 
-	ldr r0, =GPIO_PORTM_AHB_DATA_R
+	ldr r4, =GPIO_PORTM_AHB_DATA_R
 	ldr r1, =GPIO_PORTK_AHB_DATA_R
 	
-	ldr r2, [r0]
+	ldr r2, [r4]
 	ldr r3, [r1]
 
-	and r4, #2_11111111
+	and r0, #2_11111111
 
 	; RS=1, RW=0, EN=1 (envia dado)
 	bic r2, #2_00000010
 	orr r2, #2_00000101	
-	str r2, [r0]
+	str r2, [r4]
 	
 	; Escreve o comando na porta de dados do display
-	orr r3, r4
-	eor r4, #2_11111111
-	bic r3, r4
+	orr r3, r0
+	eor r0, #2_11111111
+	bic r3, r0
 	str r3, [r1]
 	
-	push {r0, r1, r3, lr}
+	push {r0-r4, lr}
 	mov r0, #1
 	bl SysTick_Wait1ms
-	pop {r0, r1, r3, lr}
+	pop {r0-r4, lr}
 	
 	; EN=0 (da clock no display)
 	bic r2, #2_00000100
-	str r2, [r0]
+	str r2, [r4]
 	
-	LDR R0, =GPIO_PORTK_AHB_DIR_R
+	LDR R4, =GPIO_PORTK_AHB_DIR_R
 	pop {r1}
-	str r1, [r0]
+	str r1, [r4]
 	
 	push {lr}
 	bl Wait_For_Display

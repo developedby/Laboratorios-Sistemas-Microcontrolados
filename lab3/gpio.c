@@ -9,7 +9,10 @@
 #include "tm4c1294ncpdt.h"
 
 #define GPIO_PORTJN (0x1100) //bits 8 e 12
-
+void ConfigInterruptPortJ(void);
+void GPIOPortJ_Handler(void);
+void EnableInterrupts(void);
+void DisableInterrupts(void);
 
 // -------------------------------------------------------------------------------
 // Função GPIO_Init
@@ -45,7 +48,9 @@ void GPIO_Init(void)
 	
 	// 7. Habilitar resistor de pull-up interno, setar PUR para 1
 	GPIO_PORTJ_AHB_PUR_R = 0x03;   //Bit0 e bit1	
-
+	
+	
+	ConfigInterruptPortJ();
 }	
 
 // -------------------------------------------------------------------------------
@@ -56,6 +61,29 @@ void GPIO_Init(void)
 uint32_t PortJ_Input(void)
 {
 	return GPIO_PORTJ_AHB_DATA_R;
+}
+
+// -------------------------------------------------------------------------------
+// Funcao que Configura a interrupção da porta J
+// Parâmetro de entrada: nao tem
+// Parâmetro de saída: não tem
+void ConfigInterruptPortJ(void)
+{
+	DisableInterrupts();//			 	; disable interrupts
+	NVIC_EN1_R = 0x00080000; //Interrupt 32-63 Set Enable, interrupt 51 (Porta J)
+	GPIO_PORTJ_AHB_IM_R = 0x0000001; //GPIOIM da porta J, apenas USR_SW1
+	EnableInterrupts();//         		; enable interrupts
+}
+
+// -------------------------------------------------------------------------------
+// Funcao que trata a interrupção da porta J
+// Parâmetro de entrada: nao tem
+// Parâmetro de saída: não tem
+void GPIOPortJ_Handler(void)
+{
+	extern int travado;
+	GPIO_PORTJ_AHB_ICR_R = 0x01; //Limpa no GPIOICR o pino 0 da porta J
+	travado = 0;	
 }
 
 // -------------------------------------------------------------------------------
