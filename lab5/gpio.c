@@ -5,7 +5,6 @@
 
 
 #include <stdint.h>
-
 #include "tm4c1294ncpdt.h"
 
 #define GPIO_PORTJN (0x1100) //bits 8 e 12

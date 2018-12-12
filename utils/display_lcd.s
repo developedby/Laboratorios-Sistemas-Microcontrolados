@@ -116,31 +116,31 @@ EsperaGPIO
 	
 Init_Display_Config	
 	; Inicializar no modo 2 linhas / caracter matriz 5x7
-	mov r4, #0x38
+	mov r0, #0x38
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 
 	; Cursor com autoincremento para direita
-	mov r4, #0x06
+	mov r0, #0x06
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 	
 	; Configurar o cursor (habilitar o display + cursor + pisca) 
-	mov r4, #0x0E
+	mov r0, #0x0E
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 	
 	; Configurar o cursor piscante 
-	mov r4, #0x0F
+	mov r0, #0x0F
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
 	
 	; Limpar o display e levar o cursor para o home
-	mov r4, #0x01
+	mov r0, #0x01
 	push {lr}
 	bl Display_Send_Instruction
 	pop {lr}
@@ -152,7 +152,7 @@ Init_Display_Config
 ; Espera o display estar pronto (le a busy flag)	
 Wait_For_Display
 	
-	push {r0-r3}
+	push {r0-r4}
 	
 	; Seta os dados do display como entrada
 	LDR     R0, =GPIO_PORTK_AHB_DIR_R			;Carrega o endereço do DIR
@@ -170,10 +170,10 @@ Wait_For_Display
 	orr r2, #2_00000110	
 	str r2, [r0]
 	
-	push {r0, r1, r3, lr}
+	push {r0-r4, lr}
 	mov r0, #1
 	bl SysTick_Wait1ms
-	pop {r0, r1, r3, lr}
+	pop {r0-r4, lr}
 	b Fim
 	
 	; EN=0 (da clock no display)
@@ -192,7 +192,7 @@ Fim
 	pop 	{r1}						
 	STR     R1, [R0]
 
-	pop {r0-r3}
+	pop {r0-r4}
 	bx lr
 	
 ; Envia comando para o display
@@ -226,10 +226,10 @@ Display_Send_Instruction
 	bic r3, r0
 	str r3, [r1]
 	
-	push {r0, r1, r3, lr}
+	push {r0-r4, lr}
 	mov r0, #1
 	bl SysTick_Wait1ms
-	pop {r0, r1, r3, lr}
+	pop {r0-r4, lr}
 	
 	; EN=0 (da clock no display)
 	bic r2, #2_00000100
@@ -277,10 +277,10 @@ Display_Send_Data
 	bic r3, r0
 	str r3, [r1]
 	
-	push {r0, r1, r3, lr}
+	push {r0-r4, lr}
 	mov r0, #1
 	bl SysTick_Wait1ms
-	pop {r0, r1, r3, lr}
+	pop {r0-r4, lr}
 	
 	; EN=0 (da clock no display)
 	bic r2, #2_00000100

@@ -418,9 +418,9 @@
               <FilePath>.\teclado_matricial_4x4.s</FilePath>
             </File>
             <File>
-              <FileName>motor_dc.c</FileName>
+              <FileName>hmc5883l.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\motor_dc.c</FilePath>
+              <FilePath>.\hmc5883l.c</FilePath>
             </File>
           </Files>
         </Group>
