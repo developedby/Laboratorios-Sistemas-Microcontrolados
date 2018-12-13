@@ -51,7 +51,7 @@ I2C0_MSA_R = ((slaveAddress) << 1);
 
 }
 
-void EndTransmission (void){
+void I2C_End_Transmission (void){
 	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
 	//I2C0_MSA_R &= ~0x01; // MSA[0] is 0 for send
 	// I2C0_MDR_R = data1&0xFF; // prepare first byte
@@ -64,7 +64,7 @@ void EndTransmission (void){
 
 }
 
-uint32_t I2C_Send_NO_START (uint32_t data1){
+uint32_t I2C_Send_Middle (uint32_t data1){
 	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
 	I2C0_MSA_R &= ~0x01; // MSA[0] is 0 for send
 	I2C0_MDR_R = data1&0xFF; // prepare first byte
@@ -80,7 +80,7 @@ uint32_t I2C_Send_NO_START (uint32_t data1){
 }
 
 
-uint32_t I2C_Send_NO_STOP ( uint32_t data1){
+uint32_t I2C_Send_Start ( uint32_t data1){
 	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
 	I2C0_MSA_R &= ~0x01; // MSA[0] is 0 for send
 	I2C0_MDR_R = data1&0xFF; // prepare first byte
@@ -95,7 +95,7 @@ uint32_t I2C_Send_NO_STOP ( uint32_t data1){
 	return (I2C0_MCS_R&(I2C_MCS_DATACK|I2C_MCS_ADRACK|I2C_MCS_ERROR));
 }
 
-uint32_t I2C_Recv(uint32_t slave){
+uint32_t I2C_Read(uint32_t slave, int n_bytes){
 	int retryCounter = 1;
 	do{
 		while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
@@ -126,31 +126,33 @@ int main (void){
 	//initialization process for “continuous-measurement mode (HMC5883L) Page 18
 
 	//(8-average, 15 Hz default, normal measurement)
-	I2C_Send_NO_STOP (0x3C);
-	I2C_Send_NO_START (0x00);
-	I2C_Send_NO_START (0x70);
+	//I2C_Send_Start (0x3C);
+	I2C_Send_Middle (0x00);
+	I2C_Send_Middle (0x70);
 
 	//(Gain=5, or any other desired gain)
-	I2C_Send_NO_STOP (0x3C);
-	I2C_Send_NO_START (0x01);
-	I2C_Send_NO_START (0xA0);
+	//I2C_Send_Start (0x3C);
+	I2C_Send_Middle (0x01);
+	I2C_Send_Middle (0xA0);
 
 	//(Continuous-measurement mode)
-	I2C_Send_NO_STOP (0x3C);
-	I2C_Send_NO_START (0x02);
-	I2C_Send_NO_START (0x00);
+	//I2C_Send_Start (0x3C);
+	I2C_Send_Middle (0x02);
+	I2C_Send_Middle (0x00);
 
 	//Delay
 	SysTick_Wait1ms(6);
 
 	// End Transmission
-	EndTransmission ();
+	I2C_End_Transmission ();
 
 	char printer[10];
 	while (1){
-		I2C_Send_NO_STOP (0x3D);	// I2C Address to Read Data according to HMC5883L datasheet page 2
-		I2C_Send_NO_START (0x03);	// Address location 03 which is X-MSB 
-		DATA = I2C_Recv(0x1E);	//Reading X-MSB
+		//I2C_Send_Start (0x3D);	// I2C Address to Read Data according to HMC5883L datasheet page 2
+		I2C_Send_Start (0x03);	// Address location 03 which is X-MSB
+		I2C_End_Transmission();
+		
+		DATA = I2C_Read(0x1E, 6);	//Reading X-MSB
 		sprintf(printer, "%d", DATA);
 		Display_Print(printer, 1, 1);
 	}
