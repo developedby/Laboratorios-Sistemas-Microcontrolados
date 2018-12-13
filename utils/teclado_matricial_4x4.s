@@ -333,7 +333,7 @@ Nao_E_15
 	bx lr
 Nao_E_Nenhum
 	;Erro, nao devia acontecer
-	mov r0, #-1
+	mov r0, #0
 	bx lr
 
 	ALIGN
