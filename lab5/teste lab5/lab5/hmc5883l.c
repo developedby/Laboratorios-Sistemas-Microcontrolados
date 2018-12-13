@@ -4,116 +4,109 @@
 #include <stdint.h>
 #include "tm4c1294ncpdt.h"
 
+#define MAXRETRIES 5 // number of receive attempts before giving up
+
 void SysTick_Wait1ms (uint32_t delay_ms);
 
-void Init_Magnetometro (void);
-void Calibra_Magnetometro (void);
-void Le_Magnetometro (void);
+void I2C0_Init (void);
+void I2C_Set_Slave_Address (uint32_t slaveAddress);
+void I2C_End_Transmission (void);
+uint32_t I2C_Send_Middle (uint32_t data1);
+uint32_t I2C_Send_Start ( uint32_t data1);
+int I2C_Read (uint32_t reg_addr, int n_bytes, uint8_t* buffer);
 
-void Init_Magnetometro (void)
+void I2C0_Init(void)
 {
-	//1a. Ativar o clock para a porta setando o bit correspondente no registrador RCGCGPIO
-	//1b.   após isso verificar no PRGPIO se a porta está pronta para uso.
-  SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R1;  
-    while((SYSCTL_PRGPIO_R & (SYSCTL_RCGCGPIO_R1) ) != (SYSCTL_RCGCGPIO_R1) ){};
-        
-   	// 2. Desabilitar a funcionalidade analógica dos pinos do GPIO no registrador GPIOAMSEL.
-	GPIO_PORTB_AHB_AMSEL_R = 0x00;
+	SYSCTL_RCGCI2C_R |= 0x0001; // activate I2C0
+	SYSCTL_RCGCGPIO_R |= 0x0002; // activate port B
+	while((SYSCTL_PRGPIO_R&0x0002) == 0){};// ready?
 
-	// 3. Preencher a função alternativa dos pinos do GPIO, para o SCL e SDA, no registrador
-	// GPIOPCTL (verificar a tabela 10-2 no datasheet páginas 743-746)
-	//COLOCAR 0010 NO TERCEIRO BLOCO (PB2) E 0010 NO QUARTO BLOCO (PB3) CONFORME TABELA E PAG 788
-    GPIO_PORTB_AHB_PCTL_R = 0x2200;
-	
-	// 4. Habilitar os bits de função alternativa no registrador GPIOAFSEL para o pino do GPIO.
-    GPIO_PORTB_AHB_AFSEL_R = 0xC;
-	
-	// 5. Habilitar a função digital no pino do GPIO no registrador GPIODEN
-	GPIO_PORTB_AHB_DEN_R = 0xC;
-	
-	// 6. Setar o pino que será I2CSDA para dreno aberto no registrador GPIOODR
-	GPIO_PORTB_AHB_ODR_R = 0x8;
-    
-	SYSCTL_RCGCI2C_R |= 0x1;
-	while((SYSCTL_PRI2C_R  & (0x1) ) != (0x1) ){};
-	
-	// 8. Habilitar a função de master no registrador I2CMCR escrevendo 1 no bit MFE.
-	I2C0_MCR_R = 0x10;
-
-    // 9. Configurar o clock no campo TPR registrador I2CMTPR.
-	I2C0_MTPR_R = 0x27;
-}	
-
-
-int Send_I2C (char address, char* data, int n_bytes)
-{
-	SysTick_Wait1ms(1);
-  // espera o I2C ficar pronto, checa o flag de busy
-  while(I2C0_MCS_R&0x01){};
-  
-  I2C0_MSA_R = address << 1;    // MSA[7:1] endereço do slave 
-  I2C0_MSA_R &= ~(0x01);   // MSA[0] 1 para leitura
-  I2C0_MDR_R = data[0];	  //endereço do data pointer
-  I2C0_MCS_R = (0 | 0x02 | 0x01); 
-
-	SysTick_Wait1ms(1); 
-	while(I2C0_MCS_R & 0x01) {}; // espera a transmissão concluir
-	//Verifica se tem erro 				
-	if ((I2C0_MCS_R & 0x02) != 0)
-	{
-		SysTick_Wait1ms(1);
-		I2C0_MCS_R = 0x04;
-		return 0xFF; //error
-	}
-		
-	for(int i = 1; i < n_bytes; i++)
-	{
-		I2C0_MDR_R = data[i];
-		SysTick_Wait1ms(1);
-		I2C0_MCS_R = 0x01;
-		
-		SysTick_Wait1ms(1); 
-		while(I2C0_MCS_R & 0x01) {}; // espera a transmissão concluir
-		//Verifica se tem erro 				
-		if ((I2C0_MCS_R & 0x02) != 0)
-		{
-			SysTick_Wait1ms(1);
-			I2C0_MCS_R = 0x04;
-			return 0xFF; //error
-		}
-	}
-	
-	I2C0_MCS_R = (0 | 0x04 | 0x01);
-  // espera a transmissão concluir
-  while(I2C0_MCS_R & 0x01) {};
-		
-	return 0;
+	GPIO_PORTB_AHB_AFSEL_R |= 0x0C; // 3) enable alt funct on PB2,3
+	GPIO_PORTB_AHB_ODR_R |= 0x08; // 4) enable open drain on PB3 only
+	GPIO_PORTB_AHB_DEN_R |= 0x0C; // 5) enable digital I/O on PB2,3
+	// 6) configure PB2,3 as I2C
+	GPIO_PORTB_AHB_PCTL_R = (GPIO_PORTB_AHB_PCTL_R&0xFFFF00FF)+0x00002200;
+	GPIO_PORTB_AHB_AMSEL_R &= ~0x0C; // 7) disable analog functionality on PB2,3
+	I2C0_MCR_R = I2C_MCR_MFE; // 9) master function enable
+	I2C0_MTPR_R &= ~I2C_MTPR_TPR_M;
+	I2C0_MTPR_R |= 0x27; // 8) configure for 100 kbps clock
 }
 
-int Receive_I2C (char address, char* data, int max_n_bytes)
+void I2C_Set_Slave_Address (uint32_t slaveAddress)
 {
-	// espera o I2C ficar pronto, checa o flag de busy
+I2C0_MSA_R = ((slaveAddress) << 1);
+}
+
+void I2C_End_Transmission (void)
+{
+	// Espera poder enviar
+	while(I2C0_MCS_R&(I2C_MCS_BUSY))
+		;
+	I2C0_MCS_R = I2C_MCS_STOP;
+	while(I2C0_MCS_R&(I2C_MCS_BUSY) || !(I2C0_MCS_R&I2C_MCS_IDLE))
+		;
+}
+
+uint32_t I2C_Send_Middle (uint32_t data1)
+{
+	// Espera poder enviar
+	while(I2C0_MCS_R&(I2C_MCS_BUSY))
+		;
+	I2C0_MSA_R &= ~I2C_MSA_RS; // MSA[0] is 0 for send
+	I2C0_MDR_R = (I2C0_MDR_R&~I2C0_MDR_R) | (data1&I2C_MDR_DATA_M); // prepare first byte
+	I2C0_MCS_R = I2C_MCS_RUN; // master enable
 	SysTick_Wait1ms(1);
-  while(I2C0_MCS_R & 0x01){};
-		
-	// Realiza a operação de leitura
-  while(I2C0_MCS_R&0x01){};// espera o I2C ficar pronto, checa o flag de busy
-  I2C0_MSA_R = 0x3D << 1;    // MSA[7:1] endereço do slave 
-  I2C0_MSA_R |= 0x01;   // MSA[0] 1 para leitura
-  I2C0_MCS_R = (0 | 0x08 | 0x02 | 0x01); //gera start/restart/habilita o master
-	
+	// Espera poder enviar
+	while(I2C0_MCS_R&(I2C_MCS_BUSY))
+		;
+	return (I2C0_MCS_R&(I2C_MCS_DATACK|I2C_MCS_ADRACK|I2C_MCS_ERROR));
+}
+
+
+uint32_t I2C_Send_Start (uint32_t data1)
+{
+	// Espera poder enviar
+	while(I2C0_MCS_R&(I2C_MCS_BUSY|I2C_MCS_BUSBSY) && !(I2C0_MCS_R&I2C_MCS_IDLE))
+		;
+	I2C0_MSA_R &= ~I2C_MSA_RS; // MSA[0] is 0 for send
+	I2C0_MDR_R = (I2C0_MDR_R&~I2C_MDR_DATA_M) | (data1&I2C_MDR_DATA_M); // prepare first byte
+	I2C0_MCS_R = I2C_MCS_START | I2C_MCS_RUN;
 	SysTick_Wait1ms(1);
-	while(I2C0_MCS_R & 0x01) {};// espera a transmissão concluir
-	//Verifica se tem erro	
-	if ((I2C0_MCS_R & 0x02) != 0)
-	{
-		SysTick_Wait1ms(1);
-		I2C0_MCS_R = 0x04;
-		return 0xFF; //error
-	}
+	// Espera poder enviar
+	while(I2C0_MCS_R&(I2C_MCS_BUSY))
+		;
+	// return error bits
+	return (I2C0_MCS_R&(I2C_MCS_DATACK|I2C_MCS_ADRACK|I2C_MCS_ERROR));
+}
+
+int I2C_Read(uint32_t reg_addr, int n_bytes, uint8_t* buffer)
+{
+	// Espera poder enviar
+	while(I2C0_MCS_R&(I2C_MCS_BUSY|I2C_MCS_BUSBSY) && !(I2C0_MCS_R&I2C_MCS_IDLE))
+		;
+	//I2C0_MSA_R &= ~I2C_MSA_RS;
+	I2C0_MDR_R = (I2C0_MDR_R & ~I2C_MDR_DATA_M)	| reg_addr;
+	//I2C0_MCS_R = I2C_MCS_START | I2C_MCS_RUN;
 	
-	for (int i = 1; i < max_n_bytes; i++)
+	//while(I2C0_MCS_R&(I2C_MCS_BUSY))
+	//	;
+	
+	I2C0_MSA_R |= I2C_MSA_RS;
+
+	for (int i = 0; i < n_bytes; i++)
 	{
+		if(i == 0)
+			I2C0_MCS_R = I2C_MCS_ACK | I2C_MCS_START | I2C_MCS_RUN;
+		else if (i > 0 && i < n_bytes-1)
+				I2C0_MCS_R = I2C_MCS_ACK | I2C_MCS_RUN;
+		else
+					I2C0_MCS_R = I2C_MCS_STOP | I2C_MCS_RUN;
 		
+		while(I2C0_MCS_R&(I2C_MCS_BUSY))
+			;
+		
+		buffer[i] = I2C0_MDR_R & I2C_MDR_DATA_M;
+		SysTick_Wait1ms(5);
 	}
+	return 0;
 }

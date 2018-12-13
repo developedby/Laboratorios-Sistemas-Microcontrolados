@@ -1,10 +1,11 @@
 #include "tm4c1294ncpdt.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <math.h>
 
-//Global Variables
-int i=0;
-uint32_t DATA;
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 void PLL_Init(void);
 void SysTick_Init(void);
@@ -16,147 +17,90 @@ void Init_Display (void);
 void Display_Send_Data (int byte);
 void Display_Send_Instruction (int byte);
 
-#define I2C_MCS_ACK 0x00000008 // Data Acknowledge Enable
-#define I2C_MCS_DATACK 0x00000008 // Acknowledge Data
-#define I2C_MCS_ADRACK 0x00000004 // Acknowledge Address
-#define I2C_MCS_STOP 0x00000004 // Generate STOP
-#define I2C_MCS_START 0x00000002 // Generate START
-#define I2C_MCS_ERROR 0x00000002 // Error
-#define I2C_MCS_RUN 0x00000001 // I2C Master Enable
-#define I2C_MCS_BUSY 0x00000001 // I2C Busy
-#define I2C_MCR_MFE 0x00000010 // I2C Master Function Enable
-
-#define MAXRETRIES 5 // number of receive attempts before giving up
-
-void I2C0_Init(void){
-	SYSCTL_RCGCI2C_R |= 0x0001; // activate I2C0
-	SYSCTL_RCGCGPIO_R |= 0x0002; // activate port B
-	while((SYSCTL_PRGPIO_R&0x0002) == 0){};// ready?
-
-	GPIO_PORTB_AHB_AFSEL_R |= 0x0C; // 3) enable alt funct on PB2,3
-	GPIO_PORTB_AHB_ODR_R |= 0x08; // 4) enable open drain on PB3 only
-	GPIO_PORTB_AHB_DEN_R |= 0x0C; // 5) enable digital I/O on PB2,3
-	// 6) configure PB2,3 as I2C
-	GPIO_PORTB_AHB_PCTL_R = (GPIO_PORTB_AHB_PCTL_R&0xFFFF00FF)+0x00002200;
-	GPIO_PORTB_AHB_AMSEL_R &= ~0x0C; // 7) disable analog functionality on PB2,3
-	I2C0_MCR_R = I2C_MCR_MFE; // 9) master function enable
-	I2C0_MTPR_R &= ~I2C_MTPR_TPR_M;
-	I2C0_MTPR_R |= 0x27; // 8) configure for 100 kbps clock
-	// 16MHZ*(TPR+1)*20ns => TPR=7
-}
-
-void Slave_Address (uint32_t slaveAddress){
-
-I2C0_MSA_R = ((slaveAddress) << 1);
-
-}
-
-void I2C_End_Transmission (void){
-	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
-	//I2C0_MSA_R &= ~0x01; // MSA[0] is 0 for send
-	// I2C0_MDR_R = data1&0xFF; // prepare first byte
-	I2C0_MCS_R = (0
-	// & ~I2C_MCS_ACK // no data ack (no data on send)
-	| I2C_MCS_STOP // generate stop
-	// | I2C_MCS_START // no start/restart
-	| I2C_MCS_RUN); // master enable
-	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for transmission done
-
-}
-
-uint32_t I2C_Send_Middle (uint32_t data1){
-	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
-	I2C0_MSA_R &= ~0x01; // MSA[0] is 0 for send
-	I2C0_MDR_R = data1&0xFF; // prepare first byte
-	I2C0_MCS_R = (0
-	// & ~I2C_MCS_ACK // no data ack (no data on send)
-	// | I2C_MCS_STOP // no stop
-	// | I2C_MCS_START // no start/restart
-	| I2C_MCS_RUN); // master enable
-	SysTick_Wait1ms(1);
-	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for transmission done
-	// return error bits
-	return (I2C0_MCS_R&(I2C_MCS_DATACK|I2C_MCS_ADRACK|I2C_MCS_ERROR));
-}
-
-
-uint32_t I2C_Send_Start ( uint32_t data1){
-	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
-	I2C0_MSA_R &= ~0x01; // MSA[0] is 0 for send
-	I2C0_MDR_R = data1&0xFF; // prepare first byte
-	I2C0_MCS_R = (0
-	// & ~I2C_MCS_ACK // no data ack (no data on send)
-	// | I2C_MCS_STOP // generate stop
-	| I2C_MCS_START // generate start/restart
-	| I2C_MCS_RUN); // master enable
-		SysTick_Wait1ms(1);
-	while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for transmission done
-	// return error bits
-	return (I2C0_MCS_R&(I2C_MCS_DATACK|I2C_MCS_ADRACK|I2C_MCS_ERROR));
-}
-
-uint32_t I2C_Read(uint32_t slave, int n_bytes){
-	int retryCounter = 1;
-	do{
-		while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for I2C ready
-		I2C0_MSA_R = (slave<<1)&0xFE; // MSA[7:1] is slave address
-		I2C0_MSA_R |= 0x01; // MSA[0] is 1 for receive
-		I2C0_MCS_R = (0
-		// & ~I2C_MCS_ACK // negative data ack (last byte)
-		| I2C_MCS_STOP // generate stop
-		| I2C_MCS_START // generate start/restart
-		| I2C_MCS_RUN); // master enable
-		while(I2C0_MCS_R&I2C_MCS_BUSY){};// wait for transmission done
-		retryCounter = retryCounter + 1; // increment retry counter
-	} // repeat if error
-	while(((I2C0_MCS_R&(I2C_MCS_ADRACK|I2C_MCS_ERROR)) != 0) && (retryCounter <= MAXRETRIES));
-	return (I2C0_MDR_R&0xFF); // usually returns 0xFF on error
-	}
-
-
-void SystemInit (void){}
+void I2C0_Init(void);
+void I2C_Set_Slave_Address (uint32_t slaveAddress);
+void I2C_End_Transmission (void);
+uint32_t I2C_Send_Middle (uint32_t data1);
+uint32_t I2C_Send_Start ( uint32_t data1);
+int I2C_Read(uint32_t reg_addr, int n_bytes, uint8_t* buffer);
+void Swap_Bytes (uint8_t *num);
 
 int main (void){
 	PLL_Init();
 	SysTick_Init();
 	Init_Display();
 	I2C0_Init();
-	Slave_Address (0x1E); // Slave Address is 0x1E according to HMC5883L datasheet
+	I2C_Set_Slave_Address(0x1E); // Slave Address is 0x1E according to HMC5883L datasheet
 
 	//initialization process for “continuous-measurement mode (HMC5883L) Page 18
 
 	//(8-average, 15 Hz default, normal measurement)
-	//I2C_Send_Start (0x3C);
-	I2C_Send_Middle (0x00);
+	I2C_Send_Start (0x00);
 	I2C_Send_Middle (0x70);
+	I2C_End_Transmission();
 
 	//(Gain=5, or any other desired gain)
-	//I2C_Send_Start (0x3C);
-	I2C_Send_Middle (0x01);
+	I2C_Send_Start (0x01);
 	I2C_Send_Middle (0xA0);
+	I2C_End_Transmission();
 
 	//(Continuous-measurement mode)
-	//I2C_Send_Start (0x3C);
-	I2C_Send_Middle (0x02);
+	I2C_Send_Start (0x02);
 	I2C_Send_Middle (0x00);
+	I2C_End_Transmission();
 
 	//Delay
 	SysTick_Wait1ms(6);
 
-	// End Transmission
-	I2C_End_Transmission ();
-
-	char printer[10];
-	while (1){
-		//I2C_Send_Start (0x3D);	// I2C Address to Read Data according to HMC5883L datasheet page 2
-		I2C_Send_Start (0x03);	// Address location 03 which is X-MSB
+	char mag_field_ascii[3][10];
+	unsigned char mag_field_bytes [6];
+	char degree_xy_ascii[10];
+	float degree_xy;
+	int deg_xi, deg_yi;
+	float deg_x, deg_y;
+	while (1)
+	{			
+		I2C_Read(0x06, 6, mag_field_bytes);
+		I2C_Send_Start(0x03);
 		I2C_End_Transmission();
+		SysTick_Wait1ms(67);
 		
-		DATA = I2C_Read(0x1E, 6);	//Reading X-MSB
-		sprintf(printer, "%d", DATA);
-		Display_Print(printer, 1, 1);
+		//Swap_Bytes(&(mag_field_bytes[0]));
+		//Swap_Bytes(&(mag_field_bytes[2]));
+		//Swap_Bytes(&(mag_field_bytes[4]));
+		
+		sprintf(mag_field_ascii[0], "%d", ((int16_t*)mag_field_bytes)[0]);
+		sprintf(mag_field_ascii[1], "%d", ((int16_t*)mag_field_bytes)[1]);
+		sprintf(mag_field_ascii[2], "%d", ((int16_t*)mag_field_bytes)[2]);
+		
+		Display_Clean();
+		Display_Print("x:", 1, 1);
+		Display_Print(mag_field_ascii[0], 1, 3);
+		Display_Print("y:", 1, 8);
+		Display_Print(mag_field_ascii[2], 1, 10);
+		Display_Print("z:", 2, 1);
+		Display_Print(mag_field_ascii[1], 2, 3);
+		
+		deg_xi = ((int16_t*)mag_field_bytes)[0];
+		deg_yi = ((int16_t*)mag_field_bytes)[2];
+		deg_x = (float)(deg_xi);
+		deg_y = (float)(deg_yi);
+		degree_xy = atan2(deg_y, deg_x);
+		degree_xy *= M_PI/180.0;
+		sprintf(degree_xy_ascii, "%d", (int)degree_xy);
+		
+		Display_Print("ang:", 2, 8);
+		Display_Print(degree_xy_ascii, 2, 12);
+		
+		SysTick_Wait1ms(300);
 	}
+}
 
+void Swap_Bytes (uint8_t *num)
+{
+	uint8_t swapper = num[0];
+	num[0] = num[1];
+	num[1] = swapper;
 }
 
 void Display_Erro()
